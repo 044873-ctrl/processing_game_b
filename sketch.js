@@ -1,88 +1,78 @@
-let paddle;
-let ball;
-let bricks = [];
+let basket;
+let fruits = [];
+let score = 0;
 
 function setup() {
   createCanvas(800, 600);
-  paddle = new Paddle();
-  ball = new Ball(paddle);
-  for (let i = 0; i < 16; i++) {
-    bricks[i] = new Brick(i * 50, 0, 50, 20);
-  }
+  basket = new Basket(400, 550, 100, 20);
 }
 
 function draw() {
-  background(0);
-  paddle.display();
-  paddle.update();
-  ball.display();
-  ball.update();
-  for (let i = bricks.length - 1; i >= 0; i--) {
-    bricks[i].display();
-    if (ball.hits(bricks[i])) {
-      bricks.splice(i, 1);
-      ball.direction.y *= -1;
+  background(220);
+  
+  if (random() < 0.01) {
+    fruits.push(new Fruit(random(width), -30));
+  }
+  
+  for (let i = fruits.length - 1; i >= 0; i--) {
+    let f = fruits[i];
+    f.move();
+    f.display();
+    
+    if (f.y > height) {
+      fruits.splice(i, 1);
+    } else if (f.hits(basket)) {
+      fruits.splice(i, 1);
+      score++;
     }
   }
+  
+  basket.move();
+  basket.display();
+  
+  fill(0);
+  textSize(32);
+  text('Score: ' + score, 10, 50);
 }
 
-class Paddle {
-  constructor() {
-    this.width = 150;
-    this.height = 20;
-    this.x = (width - this.width) / 2;
-    this.speed = 2;
+function Basket(x, y, w, h) {
+  this.x = x;
+  this.y = y;
+  this.w = w;
+  this.h = h;
+  
+  this.move = function() {
+    this.x = constrain(mouseX, this.w / 2, width - this.w / 2);
   }
   
-  display() {
-    rect(this.x, height - this.height, this.width, this.height);
-  }
-  
-  update() {
-    if (keyIsDown(LEFT_ARROW)) this.x -= this.speed;
-    if (keyIsDown(RIGHT_ARROW)) this.x += this.speed;
+  this.display = function() {
+    fill(255);
+    rectMode(CENTER);
+    rect(this.x, this.y, this.w, this.h);
   }
 }
 
-class Ball {
-  constructor(paddle) {
-    this.radius = 10;
-    this.x = paddle.x + paddle.width / 2;
-    this.y = height - paddle.height - this.radius;
-    this.direction = createVector(1, -1);
-    this.speed = 2;
+function Fruit(x, y) {
+  this.x = x;
+  this.y = y;
+  this.r = 30;
+  this.speed = 2;
+
+  this.move = function() {
+    this.y += this.speed;
   }
   
-  display() {
-    ellipse(this.x, this.y, this.radius * 2);
+  this.display = function() {
+    fill(255, 0, 0);
+    ellipse(this.x, this.y, this.r * 2, this.r * 2);
   }
-  
-  update() {
-    this.x += this.speed * this.direction.x;
-    this.y += this.speed * this.direction.y;
-    if (this.x < 0 || this.x > width) this.direction.x *= -1;
-    if (this.y < 0) this.direction.y *= -1;
-  }
-  
-  hits(brick) {
-    let d = dist(this.x, this.y, brick.x, brick.y);
-    if (d < this.radius + brick.height / 2) {
+
+  this.hits = function(basket) {
+    let d = dist(this.x, this.y, basket.x, basket.y);
+    if (d < this.r + basket.w / 2) {
       return true;
     } else {
       return false;
     }
-  }
-}
-
-class Brick {
-  constructor(x, y, w, h) {
-    this.x = x;
-    this.y = y;
-    this.width = w;
-    this.height = h;
-  }
-  
-  display() {
-    rect(this.x, this.y, this.width, this.height);
   }
 }
