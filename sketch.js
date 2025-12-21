@@ -1,274 +1,152 @@
-const COLS = 10;
-const ROWS = 20;
-const CELL = 30;
-let board = [];
-let shapes = [];
-let colors = [];
-let current = null;
-let dropCounter = 0;
-let dropInterval = 120;
-let baseDropInterval = 120;
-let fastDropInterval = 3;
+let cols = 20;
+let rows = 20;
+let cellSize = 20;
+let snake = [];
+let dirX = 1;
+let dirY = 0;
+let framesPerMove = 10;
+let moveCounter = 0;
+let food = null;
 let score = 0;
 let gameOver = false;
-function createEmptyBoard() {
-  let b = [];
-  for (let y = 0; y < ROWS; y++) {
-    let row = [];
-    for (let x = 0; x < COLS; x++) {
-      row.push(0);
-    }
-    b.push(row);
-  }
-  return b;
+let dirLocked = false;
+function randomInt(min, max) {
+  return Math.floor(random(min, max + 1));
 }
-function deepCopyMatrix(m) {
-  let nm = [];
-  for (let y = 0; y < 4; y++) {
-    let row = [];
-    for (let x = 0; x < 4; x++) {
-      row.push(m[y][x]);
-    }
-    nm.push(row);
+function placeFood() {
+  if (snake.length >= cols * rows) {
+    food = null;
+    return;
   }
-  return nm;
-}
-function rotateMatrix(m) {
-  let nm = [];
-  for (let y = 0; y < 4; y++) {
-    let row = [];
-    for (let x = 0; x < 4; x++) {
-      row.push(0);
-    }
-    nm.push(row);
-  }
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      nm[y][x] = m[4 - 1 - x][y];
-    }
-  }
-  return nm;
-}
-function collides(px, py, shape) {
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      let val = shape[y][x];
-      if (val !== 0) {
-        let bx = px + x;
-        let by = py + y;
-        if (bx < 0 || bx >= COLS || by >= ROWS) {
-          return true;
-        }
-        if (by >= 0) {
-          if (board[by][bx] !== 0) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-  return false;
-}
-function lockPiece() {
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      let val = current.shape[y][x];
-      if (val !== 0) {
-        let bx = current.x + x;
-        let by = current.y + y;
-        if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) {
-          board[by][bx] = val;
-        }
-      }
-    }
-  }
-  let lines = clearLines();
-  if (lines > 0) {
-    score += lines * 100;
-  }
-  spawnPiece();
-}
-function clearLines() {
-  let linesCleared = 0;
-  for (let y = ROWS - 1; y >= 0; y--) {
-    let full = true;
-    for (let x = 0; x < COLS; x++) {
-      if (board[y][x] === 0) {
-        full = false;
+  let attempts = 0;
+  while (true) {
+    let fx = randomInt(0, cols - 1);
+    let fy = randomInt(0, rows - 1);
+    let collision = false;
+    for (let i = 0; i < snake.length; i++) {
+      if (snake[i].x === fx && snake[i].y === fy) {
+        collision = true;
         break;
       }
     }
-    if (full) {
-      board.splice(y, 1);
-      let newRow = [];
-      for (let i = 0; i < COLS; i++) {
-        newRow.push(0);
-      }
-      board.unshift(newRow);
-      linesCleared++;
-      y++;
+    if (!collision) {
+      food = { x: fx, y: fy };
+      return;
     }
-  }
-  return linesCleared;
-}
-function spawnPiece() {
-  let idx = Math.floor(Math.random() * shapes.length);
-  let shape = deepCopyMatrix(shapes[idx]);
-  let px = Math.floor(COLS / 2) - 2;
-  let py = 0;
-  current = { x: px, y: py, shape: shape, id: idx + 1 };
-  if (collides(current.x, current.y, current.shape)) {
-    gameOver = true;
-  }
-}
-function drawBoard() {
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = 0; x < COLS; x++) {
-      let val = board[y][x];
-      stroke(50);
-      if (val === 0) {
-        fill(20);
-      } else {
-        fill(colors[val]);
-      }
-      rect(x * CELL, y * CELL, CELL, CELL);
+    attempts++;
+    if (attempts > 1000) {
+      food = null;
+      return;
     }
   }
 }
-function drawPiece() {
-  if (current === null) {
-    return;
-  }
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      let val = current.shape[y][x];
-      if (val !== 0) {
-        let bx = current.x + x;
-        let by = current.y + y;
-        if (by >= 0) {
-          fill(colors[val]);
-          stroke(200);
-          rect(bx * CELL, by * CELL, CELL, CELL);
-        }
-      }
-    }
-  }
-}
-shapes = [
-  [
-    [0,0,0,0],
-    [1,1,1,1],
-    [0,0,0,0],
-    [0,0,0,0]
-  ],
-  [
-    [0,2,2,0],
-    [0,2,2,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ],
-  [
-    [0,3,0,0],
-    [3,3,3,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ],
-  [
-    [0,0,4,0],
-    [4,4,4,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ],
-  [
-    [5,0,0,0],
-    [5,5,5,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ],
-  [
-    [0,6,6,0],
-    [6,6,0,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ],
-  [
-    [7,7,0,0],
-    [0,7,7,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]
-];
-colors = [];
-colors.push(color(0,0,0));
-colors.push(color(0,240,240));
-colors.push(color(240,240,0));
-colors.push(color(160,0,240));
-colors.push(color(240,160,0));
-colors.push(color(0,0,240));
-colors.push(color(0,240,0));
-colors.push(color(240,0,0));
-function setup() {
-  createCanvas(COLS * CELL, ROWS * CELL);
-  board = createEmptyBoard();
+function restartGame() {
+  let centerX = Math.floor(cols / 2);
+  let centerY = Math.floor(rows / 2);
+  snake = [];
+  snake.push({ x: centerX + 1, y: centerY });
+  snake.push({ x: centerX, y: centerY });
+  snake.push({ x: centerX - 1, y: centerY });
+  dirX = 1;
+  dirY = 0;
+  moveCounter = 0;
   score = 0;
-  dropCounter = 0;
-  dropInterval = baseDropInterval;
-  spawnPiece();
+  gameOver = false;
+  dirLocked = false;
+  placeFood();
+}
+function setup() {
+  createCanvas(400, 400);
+  restartGame();
   textSize(16);
   textAlign(LEFT, TOP);
 }
 function draw() {
-  background(30);
-  drawBoard();
-  drawPiece();
-  fill(255);
-  noStroke();
+  background(220);
+  fill(0);
   text("Score: " + score, 5, 5);
-  if (gameOver) {
-    fill(0, 0, 0, 180);
-    rect(0, height / 2 - 40, width, 80);
-    fill(255);
-    textAlign(CENTER, CENTER);
-    text("GAME OVER", width / 2, height / 2);
-    return;
+  if (food !== null) {
+    fill(200, 0, 0);
+    rect(food.x * cellSize, food.y * cellSize, cellSize, cellSize);
   }
-  if (keyIsDown(DOWN_ARROW)) {
-    dropInterval = fastDropInterval;
-  } else {
-    dropInterval = baseDropInterval;
+  fill(34, 139, 34);
+  for (let i = 0; i < snake.length; i++) {
+    rect(snake[i].x * cellSize, snake[i].y * cellSize, cellSize, cellSize);
   }
-  dropCounter++;
-  if (dropCounter >= dropInterval) {
-    dropCounter = 0;
-    current.y += 1;
-    if (collides(current.x, current.y, current.shape)) {
-      current.y -= 1;
-      lockPiece();
+  if (!gameOver) {
+    moveCounter++;
+    if (moveCounter >= framesPerMove) {
+      moveCounter = 0;
+      let head = snake[0];
+      let newX = head.x + dirX;
+      let newY = head.y + dirY;
+      if (newX < 0 || newX >= cols || newY < 0 || newY >= rows) {
+        gameOver = true;
+      } else {
+        let isEating = false;
+        if (food !== null && newX === food.x && newY === food.y) {
+          isEating = true;
+        }
+        let collided = false;
+        for (let i = 0; i < snake.length; i++) {
+          if (snake[i].x === newX && snake[i].y === newY) {
+            if (isEating || i < snake.length - 1) {
+              collided = true;
+              break;
+            }
+          }
+        }
+        if (collided) {
+          gameOver = true;
+        } else {
+          snake.unshift({ x: newX, y: newY });
+          if (isEating) {
+            score++;
+            placeFood();
+          } else {
+            snake.pop();
+          }
+        }
+      }
+      dirLocked = false;
     }
+  } else {
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    text("Game Over", width / 2, height / 2 - 10);
+    textSize(16);
+    text("Press R to Restart", width / 2, height / 2 + 24);
+    textAlign(LEFT, TOP);
+    textSize(16);
   }
 }
 function keyPressed() {
-  if (gameOver) {
-    return;
-  }
-  if (keyCode === LEFT_ARROW) {
-    current.x -= 1;
-    if (collides(current.x, current.y, current.shape)) {
-      current.x += 1;
-    }
-  } else if (keyCode === RIGHT_ARROW) {
-    current.x += 1;
-    if (collides(current.x, current.y, current.shape)) {
-      current.x -= 1;
+  if (keyCode === UP_ARROW) {
+    if (!dirLocked && !(dirX === 0 && dirY === 1)) {
+      dirX = 0;
+      dirY = -1;
+      dirLocked = true;
     }
   } else if (keyCode === DOWN_ARROW) {
-    // handled in draw for continuous fast drop
-  } else if (keyCode === UP_ARROW) {
-    let rotated = rotateMatrix(current.shape);
-    let oldShape = current.shape;
-    current.shape = rotated;
-    if (collides(current.x, current.y, current.shape)) {
-      current.shape = oldShape;
+    if (!dirLocked && !(dirX === 0 && dirY === -1)) {
+      dirX = 0;
+      dirY = 1;
+      dirLocked = true;
     }
+  } else if (keyCode === LEFT_ARROW) {
+    if (!dirLocked && !(dirX === 1 && dirY === 0)) {
+      dirX = -1;
+      dirY = 0;
+      dirLocked = true;
+    }
+  } else if (keyCode === RIGHT_ARROW) {
+    if (!dirLocked && !(dirX === -1 && dirY === 0)) {
+      dirX = 1;
+      dirY = 0;
+      dirLocked = true;
+    }
+  } else if ((key === 'r' || key === 'R') && gameOver) {
+    restartGame();
   }
 }
