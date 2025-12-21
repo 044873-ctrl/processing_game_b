@@ -1,146 +1,186 @@
-const cols = 20;
-const rows = 20;
-const cellSize = 20;
-let snake = [];
-let dir = {x: 1, y: 0};
-let nextDir = {x: 1, y: 0};
-let foods = [];
-let score = 0;
-let tick = 0;
-const moveInterval = 10;
-let gameOver = false;
+let player;
+let bullets;
+let enemies;
+let particles;
+let stars;
+let score;
+let gameOver;
+function createStar() {
+  let s = {
+    x: Math.floor(Math.random() * 400),
+    y: Math.floor(Math.random() * 600),
+    r: Math.random() * 2 + 1,
+    vy: Math.random() * 1.5 + 0.5
+  };
+  return s;
+}
+function createBullet(x,y) {
+  let b = {
+    x: x,
+    y: y,
+    r: 4,
+    vy: -8
+  };
+  return b;
+}
+function createEnemy() {
+  let e = {
+    r: 12,
+    x: Math.floor(Math.random() * (400 - 24)) + 12,
+    y: -12,
+    vy: 2
+  };
+  return e;
+}
+function createParticle(x,y) {
+  let angle = Math.random() * Math.PI * 2;
+  let speed = Math.random() * 2 + 1;
+  let p = {
+    x: x,
+    y: y,
+    r: 3,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    life: 20
+  };
+  return p;
+}
 function setup() {
-  createCanvas(cols * cellSize, rows * cellSize);
-  const centerX = Math.floor(cols / 2);
-  const centerY = Math.floor(rows / 2);
-  for (let i = 0; i < 3; i++) {
-    snake.push({x: centerX - i, y: centerY});
+  createCanvas(400,600);
+  player = {
+    x: width / 2,
+    y: height - 30,
+    r: 12,
+    speed: 5
+  };
+  bullets = [];
+  enemies = [];
+  particles = [];
+  stars = [];
+  score = 0;
+  gameOver = false;
+  for (let i = 0; i < 30; i++) {
+    stars.push(createStar());
   }
-  generateFoods();
-  textSize(16);
+  textSize(18);
   textAlign(LEFT, TOP);
+  noStroke();
 }
 function draw() {
-  background(220);
-  fill(0);
-  text("Score: " + score, 6, 6);
-  drawFoods();
-  drawSnake();
+  background(0);
+  fill(255);
+  for (let i = 0; i < stars.length; i++) {
+    let s = stars[i];
+    ellipse(s.x, s.y, s.r * 2, s.r * 2);
+    s.y += s.vy;
+    if (s.y - s.r > height) {
+      s.y = -s.r;
+      s.x = Math.floor(Math.random() * width);
+    }
+  }
   if (!gameOver) {
-    tick++;
-    if (tick >= moveInterval) {
-      tick = 0;
-      dir = {x: nextDir.x, y: nextDir.y};
-      const head = snake[0];
-      const newHead = {x: head.x + dir.x, y: head.y + dir.y};
-      if (newHead.x < 0 || newHead.x >= cols || newHead.y < 0 || newHead.y >= rows) {
+    if (keyIsDown(LEFT_ARROW)) {
+      player.x -= player.speed;
+    }
+    if (keyIsDown(RIGHT_ARROW)) {
+      player.x += player.speed;
+    }
+    if (player.x - player.r < 0) {
+      player.x = player.r;
+    }
+    if (player.x + player.r > width) {
+      player.x = width - player.r;
+    }
+  }
+  fill(0, 150, 255);
+  triangle(player.x, player.y - player.r, player.x - player.r, player.y + player.r, player.x + player.r, player.y + player.r);
+  if (!gameOver && frameCount % 60 === 0) {
+    enemies.push(createEnemy());
+  }
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let b = bullets[i];
+    b.y += b.vy;
+    fill(255, 255, 0);
+    ellipse(b.x, b.y, b.r * 2, b.r * 2);
+    if (b.y + b.r < 0) {
+      bullets.splice(i, 1);
+    }
+  }
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
+    if (!gameOver) {
+      e.y += e.vy;
+    }
+    fill(255, 0, 0);
+    ellipse(e.x, e.y, e.r * 2, e.r * 2);
+    if (!gameOver) {
+      let d = dist(e.x, e.y, player.x, player.y);
+      if (d <= e.r + player.r) {
         gameOver = true;
-        return;
-      }
-      const foodIndex = indexOfFoodAt(newHead.x, newHead.y);
-      const willGrow = foodIndex !== -1;
-      if (!willGrow) {
-        for (let i = 0; i < snake.length - 1; i++) {
-          if (snake[i].x === newHead.x && snake[i].y === newHead.y) {
-            gameOver = true;
-            return;
-          }
-        }
-      } else {
-        for (let i = 0; i < snake.length; i++) {
-          if (snake[i].x === newHead.x && snake[i].y === newHead.y) {
-            gameOver = true;
-            return;
-          }
-        }
-      }
-      snake.unshift(newHead);
-      if (willGrow) {
-        foods.splice(foodIndex, 1);
-        score++;
-        generateFoods();
-      } else {
-        snake.pop();
       }
     }
-  } else {
-    fill(0);
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      let b = bullets[j];
+      let dbe = dist(b.x, b.y, e.x, e.y);
+      if (dbe <= b.r + e.r) {
+        score += 1;
+        for (let k = 0; k < 5; k++) {
+          particles.push(createParticle(e.x, e.y));
+        }
+        bullets.splice(j, 1);
+        enemies.splice(i, 1);
+        break;
+      }
+    }
+    if (i < enemies.length && e.y - e.r > height) {
+      enemies.splice(i, 1);
+    }
+  }
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 1;
+    fill(255, 150, 0, Math.max(0, p.life * 12));
+    ellipse(p.x, p.y, p.r * 2, p.r * 2);
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+  fill(255);
+  text("Score: " + score, 8, 8);
+  if (gameOver) {
+    fill(255, 0, 0);
     textAlign(CENTER, CENTER);
     textSize(32);
-    text("Game Over", width / 2, height / 2);
-    textSize(16);
+    text("GAME OVER", width / 2, height / 2 - 20);
+    textSize(18);
+    text("Press R to restart", width / 2, height / 2 + 20);
+    textSize(18);
     textAlign(LEFT, TOP);
-  }
-}
-function drawSnake() {
-  noStroke();
-  for (let i = 0; i < snake.length; i++) {
-    const part = snake[i];
-    if (i === 0) {
-      fill(0, 150, 0);
-    } else {
-      fill(0, 200, 0);
-    }
-    rect(part.x * cellSize, part.y * cellSize, cellSize, cellSize);
-  }
-}
-function drawFoods() {
-  noStroke();
-  fill(200, 0, 0);
-  for (let i = 0; i < foods.length; i++) {
-    const f = foods[i];
-    rect(f.x * cellSize + 4, f.y * cellSize + 4, cellSize - 8, cellSize - 8);
-  }
-}
-function generateFoods() {
-  while (foods.length < 100) {
-    const rx = Math.floor(random(cols));
-    const ry = Math.floor(random(rows));
-    if (isOnSnake(rx, ry)) {
-      continue;
-    }
-    if (indexOfFoodAt(rx, ry) !== -1) {
-      continue;
-    }
-    foods.push({x: rx, y: ry});
-  }
-}
-function isOnSnake(x, y) {
-  for (let i = 0; i < snake.length; i++) {
-    const s = snake[i];
-    if (s.x === x && s.y === y) {
-      return true;
+    if (keyIsDown(82)) {
+      resetGame();
     }
   }
-  return false;
-}
-function indexOfFoodAt(x, y) {
-  for (let i = 0; i < foods.length; i++) {
-    if (foods[i].x === x && foods[i].y === y) {
-      return i;
-    }
-  }
-  return -1;
 }
 function keyPressed() {
-  if (gameOver) {
-    return;
+  if (!gameOver && keyCode === 32) {
+    bullets.push(createBullet(player.x, player.y - player.r));
   }
-  if (keyCode === UP_ARROW) {
-    if (!(dir.x === 0 && dir.y === 1)) {
-      nextDir = {x: 0, y: -1};
-    }
-  } else if (keyCode === DOWN_ARROW) {
-    if (!(dir.x === 0 && dir.y === -1)) {
-      nextDir = {x: 0, y: 1};
-    }
-  } else if (keyCode === LEFT_ARROW) {
-    if (!(dir.x === 1 && dir.y === 0)) {
-      nextDir = {x: -1, y: 0};
-    }
-  } else if (keyCode === RIGHT_ARROW) {
-    if (!(dir.x === -1 && dir.y === 0)) {
-      nextDir = {x: 1, y: 0};
-    }
+  if (gameOver && (keyCode === 82)) {
+    resetGame();
+  }
+}
+function resetGame() {
+  player.x = width / 2;
+  player.y = height - 30;
+  bullets.length = 0;
+  enemies.length = 0;
+  particles.length = 0;
+  score = 0;
+  gameOver = false;
+  stars.length = 0;
+  for (let i = 0; i < 30; i++) {
+    stars.push(createStar());
   }
 }
