@@ -1,264 +1,142 @@
-let cols = 10;
-let rows = 20;
-let cell = 30;
-let board = [];
-let shapes = [];
-let colors = [];
-let current = null;
+let player;
+let bullets = [];
+let enemies = [];
+let particles = [];
+let stars = [];
 let score = 0;
-let frameCounter = 0;
-let dropIntervalNormal = 30;
-let dropIntervalFast = 2;
 let gameOver = false;
-function setup() {
-  createCanvas(300, 600);
-  for (let y = 0; y < rows; y++) {
-    let row = [];
-    for (let x = 0; x < cols; x++) {
-      row.push(0);
-    }
-    board.push(row);
+function setup(){
+  createCanvas(400,600);
+  player = {x: width/2, y: height-40, r: 14, speed: 5};
+  for(let i=0;i<30;i++){
+    let s = {x: random(0,width), y: random(0,height), vy: random(0.5,1.5), sz: random(1,3)};
+    stars.push(s);
   }
-  shapes.push([
-    [0,0,0,0],
-    [1,1,1,1],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  shapes.push([
-    [0,0,0,0],
-    [0,1,1,0],
-    [0,1,1,0],
-    [0,0,0,0]
-  ]);
-  shapes.push([
-    [0,0,0,0],
-    [0,1,0,0],
-    [1,1,1,0],
-    [0,0,0,0]
-  ]);
-  shapes.push([
-    [0,0,0,0],
-    [0,0,1,0],
-    [1,1,1,0],
-    [0,0,0,0]
-  ]);
-  shapes.push([
-    [0,0,0,0],
-    [1,0,0,0],
-    [1,1,1,0],
-    [0,0,0,0]
-  ]);
-  shapes.push([
-    [0,0,0,0],
-    [0,1,1,0],
-    [1,1,0,0],
-    [0,0,0,0]
-  ]);
-  shapes.push([
-    [0,0,0,0],
-    [1,1,0,0],
-    [0,1,1,0],
-    [0,0,0,0]
-  ]);
-  colors = [
-    color(0, 240, 240),
-    color(240, 240, 0),
-    color(160, 0, 240),
-    color(240, 160, 0),
-    color(0, 0, 240),
-    color(0, 240, 0),
-    color(240, 0, 0)
-  ];
-  newPiece();
   score = 0;
-  frameCounter = 0;
-  textAlign(LEFT, TOP);
+  gameOver = false;
+  bullets = [];
+  enemies = [];
+  particles = [];
+  noStroke();
+  textAlign(LEFT,TOP);
   textSize(16);
 }
-function draw() {
-  background(20);
-  frameCounter++;
-  if (!gameOver) {
-    let interval = dropIntervalNormal;
-    if (keyIsDown(DOWN_ARROW)) {
-      interval = dropIntervalFast;
-    }
-    if (frameCounter % interval === 0) {
-      if (canMove(current.shape, current.x, current.y + 1)) {
-        current.y++;
-      } else {
-        lockPiece();
-      }
-    }
-  }
-  drawBoard();
-  drawPiece(current);
+function draw(){
+  background(0);
   fill(255);
-  noStroke();
-  text("Score: " + score, 5, 5);
-  if (gameOver) {
-    fill(0,0,0,150);
-    rect(0, height/2 - 40, width, 80);
-    fill(255);
-    textSize(24);
-    textAlign(CENTER, CENTER);
-    text("Game Over", width/2, height/2);
-    textSize(16);
-    textAlign(LEFT, TOP);
+  for(let i=0;i<stars.length;i++){
+    let s = stars[i];
+    s.y += s.vy;
+    if(s.y > height + s.sz){
+      s.y = -s.sz;
+      s.x = random(0,width);
+    }
+    ellipse(s.x, s.y, s.sz, s.sz);
   }
-}
-function drawBoard() {
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      let v = board[y][x];
-      if (v) {
-        fill(v);
-        stroke(30);
-        rect(x * cell, y * cell, cell, cell);
-      } else {
-        noFill();
-        stroke(40);
-        rect(x * cell, y * cell, cell, cell);
-      }
+  if(!gameOver){
+    if(keyIsDown(LEFT_ARROW)){
+      player.x -= player.speed;
+    }
+    if(keyIsDown(RIGHT_ARROW)){
+      player.x += player.speed;
+    }
+    if(player.x < player.r) player.x = player.r;
+    if(player.x > width - player.r) player.x = width - player.r;
+  }
+  for(let i=bullets.length-1;i>=0;i--){
+    let b = bullets[i];
+    b.y += b.vy;
+    if(b.y < -b.r){
+      bullets.splice(i,1);
+      continue;
+    }
+    fill(255,200,0);
+    ellipse(b.x,b.y,b.r*2,b.r*2);
+  }
+  if(!gameOver){
+    if(frameCount % 60 === 0){
+      let er = 12;
+      let ex = random(er, width - er);
+      let ey = -er;
+      enemies.push({x: ex, y: ey, r: er, vy: 2});
     }
   }
-}
-function drawPiece(p) {
-  if (!p) {
-    return;
-  }
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) {
-      if (p.shape[i][j]) {
-        let px = (p.x + j) * cell;
-        let py = (p.y + i) * cell;
-        fill(p.color);
-        stroke(30);
-        rect(px, py, cell, cell);
-      }
+  for(let i=enemies.length-1;i>=0;i--){
+    let e = enemies[i];
+    e.y += e.vy;
+    if(e.y > height + e.r){
+      enemies.splice(i,1);
+      continue;
     }
+    fill(200,50,50);
+    ellipse(e.x,e.y,e.r*2,e.r*2);
   }
-}
-function newPiece() {
-  let idx = floor(random(0, shapes.length));
-  let shape = copyShape(shapes[idx]);
-  let startX = 3;
-  let startY = 0;
-  let col = colors[idx];
-  current = {shape: shape, x: startX, y: startY, color: col, idx: idx};
-  if (!canMove(current.shape, current.x, current.y)) {
-    gameOver = true;
-  }
-}
-function copyShape(s) {
-  let out = [];
-  for (let i = 0; i < 4; i++) {
-    let row = [];
-    for (let j = 0; j < 4; j++) {
-      row.push(s[i][j]);
-    }
-    out.push(row);
-  }
-  return out;
-}
-function canMove(shape, x, y) {
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) {
-      if (shape[i][j]) {
-        let gx = x + j;
-        let gy = y + i;
-        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) {
-          return false;
+  for(let i=enemies.length-1;i>=0;i--){
+    let e = enemies[i];
+    for(let j=bullets.length-1;j>=0;j--){
+      let b = bullets[j];
+      let dx = e.x - b.x;
+      let dy = e.y - b.y;
+      let dist2 = dx*dx + dy*dy;
+      let rr = e.r + b.r;
+      if(dist2 <= rr*rr){
+        for(let k=0;k<5;k++){
+          let angle = random(0, TWO_PI);
+          let speed = random(1,3);
+          let vx = cos(angle)*speed;
+          let vy = sin(angle)*speed;
+          particles.push({x: e.x, y: e.y, r: 3, vx: vx, vy: vy, life: 20});
         }
-        if (board[gy][gx]) {
-          return false;
-        }
-      }
-    }
-  }
-  return true;
-}
-function lockPiece() {
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) {
-      if (current.shape[i][j]) {
-        let gx = current.x + j;
-        let gy = current.y + i;
-        if (gy >= 0 && gy < rows && gx >= 0 && gx < cols) {
-          board[gy][gx] = current.color;
-        }
-      }
-    }
-  }
-  clearLines();
-  newPiece();
-}
-function clearLines() {
-  let linesCleared = 0;
-  for (let y = rows - 1; y >= 0; y--) {
-    let full = true;
-    for (let x = 0; x < cols; x++) {
-      if (!board[y][x]) {
-        full = false;
+        score += 1;
+        enemies.splice(i,1);
+        bullets.splice(j,1);
         break;
       }
     }
-    if (full) {
-      linesCleared++;
-      for (let ty = y; ty > 0; ty--) {
-        for (let tx = 0; tx < cols; tx++) {
-          board[ty][tx] = board[ty - 1][tx];
-        }
-      }
-      for (let tx = 0; tx < cols; tx++) {
-        board[0][tx] = 0;
-      }
-      y++;
+  }
+  for(let i=particles.length-1;i>=0;i--){
+    let p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if(p.life <= 0){
+      particles.splice(i,1);
+      continue;
+    }
+    let alpha = map(p.life,0,20,0,255);
+    fill(255,150,0,alpha);
+    ellipse(p.x,p.y,p.r*2,p.r*2);
+  }
+  for(let i=enemies.length-1;i>=0;i--){
+    let e = enemies[i];
+    let dx = e.x - player.x;
+    let dy = e.y - player.y;
+    let dist2 = dx*dx + dy*dy;
+    let rr = e.r + player.r;
+    if(dist2 <= rr*rr){
+      gameOver = true;
+      break;
     }
   }
-  if (linesCleared > 0) {
-    score += linesCleared * 100;
+  fill(0,150,255);
+  triangle(player.x, player.y - player.r, player.x - player.r, player.y + player.r, player.x + player.r, player.y + player.r);
+  fill(255);
+  text("Score: " + score, 8, 8);
+  if(gameOver){
+    fill(255,0,0);
+    textAlign(CENTER,CENTER);
+    textSize(32);
+    text("GAME OVER", width/2, height/2);
+    textSize(16);
+    textAlign(LEFT,TOP);
   }
 }
-function rotateMatrix(shape) {
-  let out = [];
-  for (let i = 0; i < 4; i++) {
-    let row = [];
-    for (let j = 0; j < 4; j++) {
-      row.push(0);
-    }
-    out.push(row);
+function keyPressed(){
+  if(!gameOver && keyCode === 32){
+    let b = {x: player.x, y: player.y - player.r, r: 4, vy: -8};
+    bullets.push(b);
   }
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) {
-      out[j][3 - i] = shape[i][j];
-    }
-  }
-  return out;
-}
-function keyPressed() {
-  if (gameOver) {
-    return;
-  }
-  if (keyCode === LEFT_ARROW) {
-    if (canMove(current.shape, current.x - 1, current.y)) {
-      current.x--;
-    }
-  } else if (keyCode === RIGHT_ARROW) {
-    if (canMove(current.shape, current.x + 1, current.y)) {
-      current.x++;
-    }
-  } else if (keyCode === UP_ARROW) {
-    let rotated = rotateMatrix(current.shape);
-    if (canMove(rotated, current.x, current.y)) {
-      current.shape = rotated;
-    }
-  } else if (keyCode === DOWN_ARROW) {
-    if (canMove(current.shape, current.x, current.y + 1)) {
-      current.y++;
-    } else {
-      lockPiece();
-    }
+  if(gameOver && (key === 'r' || key === 'R')){
+    setup();
   }
 }
