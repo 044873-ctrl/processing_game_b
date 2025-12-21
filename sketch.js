@@ -1,248 +1,115 @@
 var cols=10;
-var rows=20;
-var cell=30;
-var board=[];
-var pieces=[];
-var colors=[];
-var currentPiece=null;
-var dropCounter=0;
-var baseInterval=30;
-var gameOver=false;
-var score=0;
+var rows=10;
+var cellSize=40;
+var totalMines=15;
+var COVERED=0;
+var OPEN=1;
+var FLAGGED=2;
+var mines;
+var state;
+var counts;
+var flagsCount;
+var openCount;
+var gameOver;
+var won;
+var cnv;
 function setup(){
-  createCanvas(300,600);
-  frameRate(60);
-  for(var r=0;r<rows;r++){
-    var row=[];
-    for(var c=0;c<cols;c++){
-      row.push(0);
+  cnv=createCanvas(cols*cellSize,rows*cellSize);
+  cnv.elt.oncontextmenu=function(){return false;};
+  initGame();
+}
+function initGame(){
+  mines=new Array(cols);
+  state=new Array(cols);
+  counts=new Array(cols);
+  for(var x=0;x<cols;x++){
+    mines[x]=new Array(rows);
+    state[x]=new Array(rows);
+    counts[x]=new Array(rows);
+    for(var y=0;y<rows;y++){
+      mines[x][y]=false;
+      state[x][y]=COVERED;
+      counts[x][y]=0;
     }
-    board.push(row);
   }
-  pieces.push([
-    [0,0,0,0],
-    [1,1,1,1],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,0,0],
-    [0,1,1,0],
-    [0,1,1,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,0,0],
-    [0,1,0,0],
-    [1,1,1,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,0,0],
-    [0,0,1,0],
-    [1,1,1,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,0,0],
-    [1,0,0,0],
-    [1,1,1,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,0,0],
-    [0,1,1,0],
-    [1,1,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,0,0],
-    [1,1,0,0],
-    [0,1,1,0],
-    [0,0,0,0]
-  ]);
-  colors.push(color(0,255,255));
-  colors.push(color(255,255,0));
-  colors.push(color(128,0,128));
-  colors.push(color(255,165,0));
-  colors.push(color(0,0,255));
-  colors.push(color(0,255,0));
-  colors.push(color(255,0,0));
-  spawnPiece();
+  var positions=new Array(cols*rows);
+  for(var i=0;i<positions.length;i++){positions[i]=i;}
+  for(var i=positions.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var tmp=positions[i];
+    positions[i]=positions[j];
+    positions[j]=tmp;
+  }
+  for(var k=0;k<totalMines;k++){
+    var p=positions[k];
+    var mx=p%cols;
+    var my=Math.floor(p/cols);
+    mines[mx][my]=true;
+  }
+  for(var x=0;x<cols;x++){
+    for(var y=0;y<rows;y++){
+      if(mines[x][y]){counts[x][y]=-1;continue;}
+      var cnt=0;
+      for(var dx=-1;dx<=1;dx++){
+        for(var dy=-1;dy<=1;dy++){
+          if(dx===0 && dy===0)continue;
+          var nx=x+dx;
+          var ny=y+dy;
+          if(nx>=0 && nx<cols && ny>=0 && ny<rows){
+            if(mines[nx][ny])cnt++;
+          }
+        }
+      }
+      counts[x][y]=cnt;
+    }
+  }
+  flagsCount=0;
+  openCount=0;
+  gameOver=false;
+  won=false;
 }
 function draw(){
-  background(30);
-  drawBoard();
-  drawPiece();
-  fill(255);
-  textSize(16);
-  textAlign(LEFT,TOP);
-  text("Score: "+score,5,5);
-  if(gameOver){
-    textSize(32);
+  background(220);
+  stroke(100);
+  for(var x=0;x<cols;x++){
+    for(var y=0;y<rows;y++){
+      var sx=x*cellSize;
+      var sy=y*cellSize;
+      if(state[x][y]===OPEN){
+        fill(200);
+        rect(sx,sy,cellSize,cellSize);
+        if(mines[x][y]){
+          fill(0);
+          ellipse(sx+cellSize/2,sy+cellSize/2,cellSize*0.5,cellSize*0.5);
+        } else {
+          var n=counts[x][y];
+          if(n>0){
+            fill(0);
+            textAlign(CENTER,CENTER);
+            textSize(16);
+            text(n,sx+cellSize/2,sy+cellSize/2);
+          }
+        }
+      } else {
+        fill(150);
+        rect(sx,sy,cellSize,cellSize);
+        if(state[x][y]===FLAGGED){
+          fill(255,0,0);
+          var fx=sx+cellSize*0.2;
+          var fy=sy+cellSize*0.2;
+          triangle(fx,fy+cellSize*0.6,fx,fy,fx+cellSize*0.5,fy+cellSize*0.3);
+          stroke(0);
+          line(fx,fy+cellSize*0.6,fx,fy);
+          noStroke();
+        }
+      }
+    }
+  }
+  if(gameOver || won){
+    fill(0,0,0,150);
+    rect(0,0,width,height);
+    fill(255);
     textAlign(CENTER,CENTER);
-    text("GAME OVER",width/2,height/2);
-    return;
-  }
-  dropCounter++;
-  var interval=baseInterval;
-  if(keyIsDown(DOWN_ARROW)){
-    interval=1;
-  }
-  if(dropCounter>=interval){
-    dropCounter=0;
-    moveDown();
-  }
-}
-function spawnPiece(){
-  var idx=floor(random(0,pieces.length));
-  var mat=cloneMat(pieces[idx]);
-  var startX=floor((cols-4)/2);
-  var startY=0;
-  currentPiece={mat:mat,x:startX,y:startY,color:idx+1};
-  if(!isValid(currentPiece.x,currentPiece.y,currentPiece.mat)){
-    gameOver=true;
-  }
-}
-function cloneMat(mat){
-  var out=[];
-  for(var r=0;r<4;r++){
-    var row=[];
-    for(var c=0;c<4;c++){
-      row.push(mat[r][c]);
-    }
-    out.push(row);
-  }
-  return out;
-}
-function isValid(posX,posY,mat){
-  for(var r=0;r<4;r++){
-    for(var c=0;c<4;c++){
-      if(mat[r][c]){
-        var x=posX+c;
-        var y=posY+r;
-        if(x<0||x>=cols||y<0||y>=rows){
-          return false;
-        }
-        if(board[y][x]){
-          return false;
-        }
-      }
-    }
-  }
-  return true;
-}
-function moveDown(){
-  if(isValid(currentPiece.x,currentPiece.y+1,currentPiece.mat)){
-    currentPiece.y++;
-  }else{
-    lockPiece();
-  }
-}
-function lockPiece(){
-  for(var r=0;r<4;r++){
-    for(var c=0;c<4;c++){
-      if(currentPiece.mat[r][c]){
-        var x=currentPiece.x+c;
-        var y=currentPiece.y+r;
-        if(y>=0&&y<rows&&x>=0&&x<cols){
-          board[y][x]=currentPiece.color;
-        }
-      }
-    }
-  }
-  clearLines();
-  spawnPiece();
-}
-function clearLines(){
-  for(var r=rows-1;r>=0;r--){
-    var full=true;
-    for(var c=0;c<cols;c++){
-      if(board[r][c]===0){
-        full=false;
-        break;
-      }
-    }
-    if(full){
-      board.splice(r,1);
-      var newRow=[];
-      for(var c=0;c<cols;c++){
-        newRow.push(0);
-      }
-      board.unshift(newRow);
-      score+=100;
-      r++;
-    }
-  }
-}
-function drawBoard(){
-  stroke(50);
-  for(var r=0;r<rows;r++){
-    for(var c=0;c<cols;c++){
-      var val=board[r][c];
-      if(val){
-        fill(colors[val-1]);
-      }else{
-        fill(20);
-      }
-      rect(c*cell,r*cell,cell,cell);
-    }
-  }
-}
-function drawPiece(){
-  if(!currentPiece){
-    return;
-  }
-  noStroke();
-  for(var r=0;r<4;r++){
-    for(var c=0;c<4;c++){
-      if(currentPiece.mat[r][c]){
-        var x=(currentPiece.x+c)*cell;
-        var y=(currentPiece.y+r)*cell;
-        fill(colors[currentPiece.color-1]);
-        rect(x,y,cell,cell);
-      }
-    }
-  }
-  stroke(50);
-}
-function rotateMat(mat){
-  var out=[];
-  for(var r=0;r<4;r++){
-    var row=[];
-    for(var c=0;c<4;c++){
-      row.push(0);
-    }
-    out.push(row);
-  }
-  for(var r=0;r<4;r++){
-    for(var c=0;c<4;c++){
-      out[c][3-r]=mat[r][c];
-    }
-  }
-  return out;
-}
-function keyPressed(){
-  if(gameOver){
-    return;
-  }
-  if(keyCode===LEFT_ARROW){
-    if(isValid(currentPiece.x-1,currentPiece.y,currentPiece.mat)){
-      currentPiece.x--;
-    }
-  }else if(keyCode===RIGHT_ARROW){
-    if(isValid(currentPiece.x+1,currentPiece.y,currentPiece.mat)){
-      currentPiece.x++;
-    }
-  }else if(keyCode===UP_ARROW){
-    var rotated=rotateMat(currentPiece.mat);
-    if(isValid(currentPiece.x,currentPiece.y,rotated)){
-      currentPiece.mat=rotated;
-    }
-  }else if(keyCode===DOWN_ARROW){
-    if(isValid(currentPiece.x,currentPiece.y+1,currentPiece.mat)){
-      currentPiece.y++;
-      dropCounter=0;
-    }
-  }
-}
+    textSize(32);
+    if(won){
+      text(
