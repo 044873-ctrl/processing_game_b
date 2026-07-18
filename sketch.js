@@ -1,1 +1,95 @@
-let canvasW=600;let canvasH=400;let groundH=20;let groundY=canvasH-groundH;let player={x:50,y:0,w:30,h:30,vx:0,vy:0,onGround:false};let gravity=0.8;let jumpForce=12;let maxFall=12;let moveSpeed=4;let platforms=[];let coins=[];let score=0;let gameOver=false;let retryBtn={x:canvasW/2-50,y:canvasH/2+30,w:100,h:36};function setup(){createCanvas(canvasW,canvasH);initGame()}function initGame(){platforms=[];coins=[];score=0;gameOver=false;player.x=60;player.vx=0;player.vy=0;player.onGround=false;groundY=canvasH-groundH;let lowestY=groundY-60;for(let i=0;i<5;i++){let pw=random(80,140);let px=random(0,canvasW-pw);let py=lowestY- i*70 - random(0,40);if(py<40){py=40+i*20}platforms.push({x:px,y:py,w:pw,h:10})}player.x=constrain(platforms[0].x+10,0,canvasW-player.w);player.y=platforms[0].y-player.h;player.onGround=true;let coinCount=10;for(let i=0;i<coinCount;i++){if(i<5){let pi=floor(random(0,platforms.length));let cx=constrain(platforms[pi].x+random(10,platforms[pi].w-10),10,canvasW-10);let cy=platforms[pi].y-12;coins.push({x:cx,y:cy,r:8})}else{let cx=random(10,canvasW-10);let cy=random(40,groundY-120);coins.push({x:cx,y:cy,r:8})}}}function draw(){background(10,24,48);noStroke();fill(80);rect(0,groundY,canvasW,groundH);for(let i=0;i<platforms.length;i++){let p=platforms[i];fill(150);rect(p.x,p.y,p.w,p.h)}for(let i=coins.length-1;i>=0;i--){let c=coins[i];fill(250,220,0);ellipse(c.x,c.y,c.r*2,c.r*2);let closestX=constrain(c.x,player.x,player.x+player.w);let closestY=constrain(c.y,player.y,player.y+player.h);let dx=c.x-closestX;let dy=c.y-closestY;let dist2=dx*dx+dy*dy;if(dist2<=c.r*c.r){coins.splice(i,1);score+=10}}if(!gameOver){player.vx=0;if(keyIsDown(LEFT_ARROW)){player.vx=-moveSpeed}if(keyIsDown(RIGHT_ARROW)){player.vx=moveSpeed}player.x+=player.vx;player.x=constrain(player.x,0,canvasW-player.w);player.vy+=gravity;if(player.vy>maxFall){player.vy=maxFall}let nextY=player.y+player.vy;player.onGround=false;for(let i=0;i<platforms.length;i++){let p=platforms[i];if(player.vy>=0){let playerBottom=player.y+player.h;let nextBottom=nextY+player.h;let overlapX = player.x+player.w>p.x && player.x<p.x+p.w;if(playerBottom<=p.y && nextBottom>=p.y && overlapX){player.y=p.y-player.h;player.vy=0;player.onGround=true;break}}}if(!player.onGround){player.y=nextY}if(player.y+player.h>=groundY){gameOver=true}}fill(255);rect(player.x,player.y,player.w,player.h);fill(255);textSize(16);textAlign(LEFT,TOP);text('Score: '+score,10,10);if(gameOver){fill(255,0,0);textSize(36);textAlign(CENTER,CENTER);text('GAME OVER',canvasW/2,canvasH/2-20);fill(120);rect(retryBtn.x,retryBtn.y,retryBtn.w,retryBtn.h,6);fill(255);textSize(14);textAlign(CENTER,CENTER);text('R to Retry',retryBtn.x+retryBtn.w/2,retryBtn.y+retryBtn.h/2)}}function keyPressed(){if(!gameOver){if((key===' '||keyCode===32) && player.onGround){player.vy=-jumpForce;player.onGround=false}}if(gameOver){if(key==='r'||key==='R'){initGame()}}}function mousePressed(){if(gameOver){if(mouseX>=retryBtn.x && mouseX<=retryBtn.x+retryBtn.w && mouseY>=retryBtn.y && mouseY<=retryBtn.y+retryBtn.h){initGame()}}}
+let player;
+let enemy;
+let projectiles = [];
+let particles = [];
+let keys = {left:false,right:false};
+let gameOver = false;
+function setup(){
+createCanvas(500,500);
+player = {x:5,y:250,r:5,life:3,speed:5};
+enemy = {x:500-5,y:250,r:5,life:3,dir:-1,speed:5,attackCooldown:0,detectRadius:3,attackRange:5};
+}
+function draw(){
+background(120,200,100);
+noStroke();
+fill(80,180,70);
+rect(0,300,500,200);
+fill(40,160,60,80);
+for(let i=0;i<50;i++){
+let bx = (i*10+frameCount%10);
+rect(bx%500,300,2,20);
+}
+if(!gameOver){
+if(keys.left){player.x -= player.speed;}
+if(keys.right){player.x += player.speed;}
+player.x = constrain(player.x, player.r, width - player.r);
+for(let i=projectiles.length-1;i>=0;i--){
+let p = projectiles[i];
+p.x += p.vx;
+if(p.x > width + p.r){ projectiles.splice(i,1); continue;}
+let dx = p.x - enemy.x;
+let dy = p.y - enemy.y;
+let dist = sqrt(dx*dx+dy*dy);
+if(dist <= p.r + enemy.r && enemy.life>0){
+enemy.life -= 1;
+projectiles.splice(i,1);
+if(enemy.life<=0){
+for(let k=0;k<5;k++){
+let angle = (TWO_PI/5)*k;
+let speed = 2 + k*0.2;
+particles.push({x:enemy.x,y:enemy.y,vx:cos(angle)*speed,vy:sin(angle)*speed,r:3,life:20});
+}
+gameOver = (player.life<=0);
+}
+}
+}
+enemy.x += enemy.dir * enemy.speed;
+if(enemy.x < enemy.r || enemy.x > width - enemy.r){ enemy.dir *= -1; enemy.x = constrain(enemy.x, enemy.r, width - enemy.r);} 
+if(enemy.attackCooldown>0){ enemy.attackCooldown -= 1; }
+let dxp = player.x - enemy.x;
+let dyp = player.y - enemy.y;
+let distpe = sqrt(dxp*dxp + dyp*dyp);
+if(distpe <= enemy.detectRadius){
+if(enemy.attackCooldown<=0 && player.life>0){
+player.life -= 1;
+enemy.attackCooldown = 30;
+if(player.life<=0){ gameOver = true; }
+}
+}
+for(let i=particles.length-1;i>=0;i--){
+let q = particles[i];
+q.x += q.vx;
+q.y += q.vy;
+q.life -= 1;
+if(q.life<=0){ particles.splice(i,1); }
+}
+if(enemy.life<=0){ noLoop(); }
+if(player.life<=0){ noLoop(); }
+}
+fill(0);
+ellipse(player.x,player.y,player.r*2,player.r*2);
+if(enemy.life>0){ fill(150,0,0); ellipse(enemy.x,enemy.y,enemy.r*2,enemy.r*2); }
+fill(255,200,0);
+for(let i=0;i<projectiles.length;i++){ let p=projectiles[i]; ellipse(p.x,p.y,p.r*2,p.r*2); }
+fill(255,100,0);
+for(let i=0;i<particles.length;i++){ let q=particles[i]; ellipse(q.x,q.y,q.r*2,q.r*2); }
+fill(0);
+textSize(16);
+text('P:'+player.life,10,20);
+text('E:'+ (enemy.life>0?enemy.life:0), width-50,20);
+if(player.life<=0){ textSize(32); text('GEAM OVER', width/2-80, height/2); }
+if(enemy.life<=0){ textSize(32); text('CLEAR', width/2-40, height/2); }
+}
+function keyPressed(){
+if(keyCode===LEFT_ARROW){ keys.left=true;}
+if(keyCode===RIGHT_ARROW){ keys.right=true;}
+if(key===' '){
+if(!gameOver && enemy.life>0 && player.life>0){
+projectiles.push({x:player.x+player.r+1,y:player.y,r:5,vx:8});
+}
+}
+}
+function keyReleased(){
+if(keyCode===LEFT_ARROW){ keys.left=false;}
+if(keyCode===RIGHT_ARROW){ keys.right=false;}
+}
