@@ -5,6 +5,10 @@ var cueIndex = 0;
 var maxPull = 140;
 var powerScale = 0.12;
 var friction = 0.995;
+var holes = [];
+var holeRadius = 28;
+var cueStartX = 0;
+var cueStartY = 0;
 function Ball(x,y,r,m,cr,cg,cb){
  this.pos = createVector(x,y);
  this.vel = createVector(0,0);
@@ -18,11 +22,21 @@ function setup(){
  canvas = createCanvas(900,500);
  canvas.elt.oncontextmenu = function(){ return false; };
  frameRate(60);
+ cueStartX = width*0.2;
+ cueStartY = height/2;
  initBalls();
+ initHoles();
+}
+function initHoles(){
+ holes = [];
+ holes.push(createVector(0,0));
+ holes.push(createVector(width,0));
+ holes.push(createVector(0,height));
+ holes.push(createVector(width,height));
 }
 function initBalls(){
  balls = [];
- var cb = new Ball(width*0.2,height/2,12,1,255,255,255);
+ var cb = new Ball(cueStartX,cueStartY,12,1,255,255,255);
  balls.push(cb);
  var startX = width*0.65;
  var startY = height/2;
@@ -43,10 +57,19 @@ function initBalls(){
 }
 function draw(){
  background(30);
+ drawHoles();
  updatePhysics();
  drawBalls();
  if(isAiming){
   drawAim();
+ }
+}
+function drawHoles(){
+ noStroke();
+ for(var i=0;i<holes.length;i++){
+  var h = holes[i];
+  fill(10);
+  ellipse(h.x,h.y,holeRadius*2,holeRadius*2);
  }
 }
 function updatePhysics(){
@@ -103,13 +126,43 @@ function updatePhysics(){
    }
   }
  }
+ for(var i=balls.length-1;i>=0;i--){
+  var removed = false;
+  var ball = balls[i];
+  for(var h=0;h<holes.length;h++){
+   var hole = holes[h];
+   var d = p5.Vector.sub(ball.pos,hole).mag();
+   if(d <= holeRadius){
+    if(i === cueIndex){
+     ball.pos.set(cueStartX,cueStartY);
+     ball.vel.set(0,0);
+     removed = false;
+    } else {
+     balls.splice(i,1);
+     removed = true;
+    }
+    break;
+   }
+  }
+ }
 }
 function drawBalls(){
  noStroke();
  for(var i=0;i<balls.length;i++){
   var b = balls[i];
   fill(b.cr,b.cg,b.cb);
-  ellipse(b.pos.x,b.pos.y,b.r*2,b.r*2);
+  var rot = 0;
+  if(b.vel.mag() !== 0){
+   rot = b.vel.heading();
+  }
+  beginShape();
+  for(var k=0;k<5;k++){
+   var theta = TWO_PI * k / 5 + rot;
+   var vx = b.pos.x + cos(theta) * b.r;
+   var vy = b.pos.y + sin(theta) * b.r;
+   vertex(vx,vy);
+  }
+  endShape(CLOSE);
  }
 }
 function drawAim(){
