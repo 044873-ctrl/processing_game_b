@@ -1,1 +1,164 @@
-let w=400;let h=600;let player;let bullets=[];let enemies=[];let petals=[];let stars=[];let planets=[];let score=0;let gameOver=false;let lastShotFrame=-100;function setup(){createCanvas(w,h);player={x:w/2,y:h-70,r:14,spd:5};for(let i=0;i<40;i++){let s={x:random(0,w),y:random(0,h),r:random(1,3),spd:random(0.3,1.8)};stars.push(s);}for(let i=0;i<3;i++){let p={x:random(60,w-60),y:random(40,h/2),r:random(30,70),col:{r:floor(random(60,220)),g:floor(random(60,200)),b:floor(random(60,200))},rot:random(0,TWO_PI),rotSp:random(-0.002,0.002)};planets.push(p);}textSize(16);textAlign(LEFT,TOP);}function draw(){background(4,8,20);for(let i=0;i<stars.length;i++){let s=stars[i];s.y+=s.spd;if(s.y>h){s.y=-random(0,50);s.x=random(0,w);}noStroke();fill(255,255,255);ellipse(s.x,s.y,s.r*2,s.r*2);}for(let i=0;i<planets.length;i++){let p=planets[i];push();translate(p.x,p.y);rotate(p.rot);noStroke();fill(p.col.r,p.col.g,p.col.b);ellipse(0,0,p.r*2,p.r*2);let cr=p.col.r-60; if(cr<0){cr=0;} let cg=p.col.g-60; if(cg<0){cg=0;} let cb=p.col.b-60; if(cb<0){cb=0;}fill(cr,cg,cb,150);ellipse(-p.r*0.3,-p.r*0.2,p.r*0.9,p.r*0.5);fill(20,20,30,80);ellipse(p.r*0.25,p.r*0.3,p.r*0.6,p.r*0.4);pop();p.rot+=p.rotSp;}if(!gameOver){if(keyIsDown(LEFT_ARROW)){player.x-=player.spd;}if(keyIsDown(RIGHT_ARROW)){player.x+=player.spd;}if(player.x<player.r){player.x=player.r;}if(player.x>w-player.r){player.x=w-player.r;}if(keyIsDown(32)&&frameCount-lastShotFrame>=8){let b={x:player.x,y:player.y-player.r,spdx:0,spdy:-8,length:22,thickness:2};bullets.push(b);lastShotFrame=frameCount;}for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];b.y+=b.spdy;if(b.y<-30){bullets.splice(i,1);}else{push();translate(b.x,b.y);noStroke();fill(230,245,255);triangle(-1.5,b.length/2,1.5,b.length/2,0,-b.length/2);fill(200);rectMode(CENTER);rect(0,b.length/6,2,b.length*0.8);pop();}}if(frameCount%60===0){let ex=random(16,w-16);let e={x:ex,y:-20,r:16,spd:2.2,rot:random(0,TWO_PI),rotSp:random(-0.05,0.05)};enemies.push(e);}for(let i=enemies.length-1;i>=0;i--){let e=enemies[i];e.y+=e.spd;e.rot+=e.rotSp;if(e.y>h+e.r){enemies.splice(i,1);continue;}let dxp=player.x-e.x;let dyp=player.y-e.y;let rsump=player.r+e.r; if(dxp*dxp+dyp*dyp<=rsump*rsump){gameOver=true;continue;}push();translate(e.x,e.y);rotate(e.rot);noStroke();fill(150,100,80);ellipse(0,0,e.r*2,e.r*2);fill(120,80,60);ellipse(-e.r*0.3,-e.r*0.1,e.r*0.6,e.r*0.4);fill(100,70,50);ellipse(e.r*0.4,e.r*0.2,e.r*0.5,e.r*0.35);pop();for(let j=bullets.length-1;j>=0;j--){let b=bullets[j];let dx=b.x-e.x;let dy=b.y-e.y;let rsum=(b.length*0.5)+e.r;if(dx*dx+dy*dy<=rsum*rsum){for(let k=0;k<18;k++){let ang=random(0,TWO_PI);let sp=random(1,4);let pvx=cos(ang)*sp;let pvy=sin(ang)*sp;let pr=random(3,6);let life=60+floor(random(0,30));let rot=random(0,TWO_PI);let rotSp=random(-0.12,0.12);let pet={x:e.x,y:e.y,r:pr,life:life,vx:pvx,vy:pvy,rot:rot,rotSp:rotSp,alpha:220};petals.push(pet);}bullets.splice(j,1);enemies.splice(i,1);score++;break;}}}for(let i=petals.length-1;i>=0;i--){let p=petals[i];p.vy+=0.06;p.x+=p.vx+sin((60-p.life)*0.08)*0.4;p.y+=p.vy;p.rot+=p.rotSp;p.life-=1;push();translate(p.x,p.y);rotate(p.rot);noStroke();fill(255,140,185,p.alpha);ellipse(0,0,p.r*1.4,p.r*0.8);pop();if(p.life<=0||p.y>h+20){petals.splice(i,1);}}}push();translate(player.x,player.y);noStroke();fill(255,220,190);ellipse(0,-20,20,20);fill(70,120,200);rectMode(CENTER);rect(0,6,12,28,6);fill(255,220,190);ellipse(-6,-6,6,6);ellipse(6,-6,6,6);stroke(30);strokeWeight(3);line(-8,18,-12,30);line(8,18,12,30);noStroke();pop();fill(255);text('Score: '+score,8,8);if(gameOver){fill(255);textSize(32);textAlign(CENTER,CENTER);text('Game Over',w/2,h/2);}else{textSize(16);textAlign(LEFT,TOP);}
+var canvas;
+var balls = [];
+var isAiming = false;
+var cueIndex = 0;
+var maxPull = 140;
+var powerScale = 0.12;
+var friction = 0.995;
+function Ball(x,y,r,m,cr,cg,cb){
+ this.pos = createVector(x,y);
+ this.vel = createVector(0,0);
+ this.r = r;
+ this.m = m;
+ this.cr = cr;
+ this.cg = cg;
+ this.cb = cb;
+}
+function setup(){
+ canvas = createCanvas(900,500);
+ canvas.elt.oncontextmenu = function(){ return false; };
+ frameRate(60);
+ initBalls();
+}
+function initBalls(){
+ balls = [];
+ var cb = new Ball(width*0.2,height/2,12,1,255,255,255);
+ balls.push(cb);
+ var startX = width*0.65;
+ var startY = height/2;
+ var radius = 12;
+ var cols = 5;
+ var colors = [[255,0,0],[255,165,0],[0,128,0],[0,0,255],[128,0,128],[255,255,0],[0,255,255]];
+ var idx = 0;
+ for(var row=0; row<cols; row++){
+  for(var j=0; j<=row; j++){
+   var x = startX + row*(radius*2+1);
+   var y = startY + (j - row*0.5)*(radius*2+1);
+   var c = colors[idx % colors.length];
+   var b = new Ball(x,y,radius,1.2,c[0],c[1],c[2]);
+   balls.push(b);
+   idx++;
+  }
+ }
+}
+function draw(){
+ background(30);
+ updatePhysics();
+ drawBalls();
+ if(isAiming){
+  drawAim();
+ }
+}
+function updatePhysics(){
+ for(var i=0;i<balls.length;i++){
+  var b = balls[i];
+  b.pos.add(b.vel);
+  b.vel.mult(friction);
+  if(b.vel.mag() < 0.01){
+   b.vel.set(0,0);
+  }
+  if(b.pos.x - b.r < 0){
+   b.pos.x = b.r;
+   b.vel.x *= -0.9;
+  }
+  if(b.pos.x + b.r > width){
+   b.pos.x = width - b.r;
+   b.vel.x *= -0.9;
+  }
+  if(b.pos.y - b.r < 0){
+   b.pos.y = b.r;
+   b.vel.y *= -0.9;
+  }
+  if(b.pos.y + b.r > height){
+   b.pos.y = height - b.r;
+   b.vel.y *= -0.9;
+  }
+ }
+ for(var i=0;i<balls.length;i++){
+  for(var j=i+1;j<balls.length;j++){
+   var a = balls[i];
+   var b = balls[j];
+   var delta = p5.Vector.sub(b.pos,a.pos);
+   var dist = delta.mag();
+   var minDist = a.r + b.r;
+   if(dist <= 0){
+    delta = createVector(1,0);
+    dist = 1;
+   }
+   if(dist < minDist){
+    var overlap = minDist - dist;
+    delta.normalize();
+    a.pos.add(delta.copy().mult(-overlap*0.5));
+    b.pos.add(delta.copy().mult(overlap*0.5));
+    var relVel = p5.Vector.sub(b.vel,a.vel);
+    var velAlongNormal = relVel.dot(delta);
+    if(velAlongNormal > 0){
+     continue;
+    }
+    var e = 0.98;
+    var jImp = -(1+e)*velAlongNormal / (1/a.m + 1/b.m);
+    var impulse = delta.copy().mult(jImp);
+    a.vel.sub(impulse.copy().div(a.m));
+    b.vel.add(impulse.copy().div(b.m));
+   }
+  }
+ }
+}
+function drawBalls(){
+ noStroke();
+ for(var i=0;i<balls.length;i++){
+  var b = balls[i];
+  fill(b.cr,b.cg,b.cb);
+  ellipse(b.pos.x,b.pos.y,b.r*2,b.r*2);
+ }
+}
+function drawAim(){
+ var cb = balls[cueIndex];
+ var speed = cb.vel.mag();
+ if(speed > 0.5){
+  isAiming = false;
+  return;
+ }
+ stroke(200);
+ strokeWeight(2);
+ var mx = mouseX;
+ var my = mouseY;
+ var drag = createVector(mx,my).sub(cb.pos);
+ var pull = drag.mag();
+ if(pull > maxPull){
+  drag.setMag(maxPull);
+  pull = maxPull;
+ }
+ var end = cb.pos.copy().add(drag);
+ line(cb.pos.x,cb.pos.y,end.x,end.y);
+ strokeWeight(1);
+ noStroke();
+ var pwr = map(pull,0,maxPull,0,1);
+ fill(255*(1-pwr),255*pwr,50);
+ ellipse(end.x,end.y,8,8);
+ fill(255);
+}
+function mousePressed(){
+ if(mouseButton === RIGHT){
+  var cb = balls[cueIndex];
+  if(cb.vel.mag() < 0.5){
+   isAiming = true;
+  }
+ }
+}
+function mouseReleased(){
+ if(isAiming){
+  var cb = balls[cueIndex];
+  var drag = createVector(mouseX,mouseY).sub(cb.pos);
+  var pull = drag.mag();
+  if(pull > 0.5){
+   if(pull > maxPull) pull = maxPull;
+   var dir = drag.copy();
+   if(dir.mag() === 0) dir.set(0,0);
+   else dir.normalize();
+   var impulse = dir.mult(-pull*powerScale);
+   cb.vel.add(impulse);
+  }
+  isAiming = false;
+ }
+}
